@@ -21,7 +21,8 @@ public class OnlineFPS : ModuleRules
 			"Slate",
 			"OnlineSubsystem",
 			"OnlineSubsystemEOS",
-			"OnlineSubsystemUtils"
+			"OnlineSubsystemUtils",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
