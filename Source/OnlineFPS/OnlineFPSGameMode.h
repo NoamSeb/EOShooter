@@ -13,9 +13,6 @@ UCLASS(abstract)
 class AOnlineFPSGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
-
-public:
-	AOnlineFPSGameMode();
 };
 
 

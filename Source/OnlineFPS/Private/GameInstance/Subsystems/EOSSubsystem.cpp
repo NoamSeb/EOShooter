@@ -5,6 +5,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSessionSettings.h"
 #include "EOSDeveloperSettings.h"
 
@@ -109,7 +110,7 @@ void UEOSSubsystem::CreateSession(bool isDedicatedServer, bool isLanServer, int3
 			SessionSettings.bIsLANMatch = isLanServer;
 			SessionSettings.NumPublicConnections = MaxPublicConnection;
 			SessionSettings.bUseLobbiesIfAvailable = true;
-			SessionSettings.bUsesPresence = true;
+			SessionSettings.bUsesPresence = false;
 			SessionSettings.bShouldAdvertise = true;
 			SessionSettings.Set("SEARCH_KEYWORDS", FString("RandomHi"), EOnlineDataAdvertisementType::ViaOnlineService);
 			SessionPtr->OnCreateSessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnCreateSessionComplete);
@@ -122,6 +123,25 @@ void UEOSSubsystem::OnCreateSessionComplete(FName SessionName, bool bWasSuccess)
 {
 	if (bWasSuccess)
 	{
+		IOnlineSubsystem* SubsystemPtr = Online::GetSubsystem(this->GetWorld());
+		if (SubsystemPtr)
+		{
+			IOnlineSessionPtr SessionPtr = SubsystemPtr->GetSessionInterface();
+			if (SessionPtr)
+			{
+				// 2. On récupère les données de la session qu'on vient de créer via son nom
+				FNamedOnlineSession* NamedSession = SessionPtr->GetNamedSession(SessionName);
+                
+				if (NamedSession && NamedSession->SessionInfo.IsValid())
+				{
+					// 3. On extrait l'ID sous forme de String
+					FString SessionID;
+					SessionID = NamedSession->SessionInfo->GetSessionId().ToString();
+					UE_LOG(LogTemp, Warning, TEXT("Session créée avec succès ! ID : %s"), *SessionID);
+				}
+			}
+		}
+		
 		const UEOSDeveloperSettings* Settings = GetDefault<UEOSDeveloperSettings>();
 		FString LevelToOpen = Settings->DefaultOpenLevelText;
         
