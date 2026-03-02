@@ -13,6 +13,7 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystemTypes.h"
+#include "GameInstance/EOShooterGameInstance.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 
 
@@ -78,4 +79,14 @@ bool AOnlineFPSPlayerController::ShouldUseTouchControls() const
 {
 	// are we on a mobile platform? Should we force touch?
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
+}
+
+void AOnlineFPSPlayerController::OnNetCleanup(class UNetConnection* Connection)
+{
+	UEOShooterGameInstance* GI = Cast<UEOShooterGameInstance>(GetWorld()->GetGameInstance());
+	if (GI)
+	{
+		GI->EOSSubsystem->DestroySession();
+	}
+	Super::OnNetCleanup(Connection);
 }

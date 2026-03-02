@@ -55,4 +55,6 @@ protected:
 	/** Returns true if the player should use UMG touch controls */
 	bool ShouldUseTouchControls() const;
 	
+	virtual void OnNetCleanup(class UNetConnection* Connection) override;
+	
 };

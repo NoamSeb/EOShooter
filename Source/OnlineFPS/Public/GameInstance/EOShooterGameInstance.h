@@ -20,6 +20,7 @@ class ONLINEFPS_API UEOShooterGameInstance : public UGameInstance
 	GENERATED_BODY()
 	
 	virtual void Init() override;
+	public:
 	UEOSSubsystem* EOSSubsystem;
 	UClientGameDataSubsystem* ClientGameDataSubsystem;
 };
