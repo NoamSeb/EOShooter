@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Weapons/Weapon.h"
 #include "OnlineFPSCharacter.generated.h"
 
 class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class APaintDecal;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -24,6 +26,7 @@ enum class EPlayerState : uint8
 	ECC_Aim UMETA(DisplayName = "Aim"),
 	ECC_Slide UMETA(DisplayName = "Slide"),
 	ECC_Reloading UMETA(DisplayName = "Reloading"),
+	ECC_ChangingWeapon UMETA(DisplayName = "Changing Weapon")
 };
 UENUM(BlueprintType)
 enum class EMovementDirection : uint8
@@ -43,13 +46,6 @@ enum class EPlayerPosture : uint8
 	ECC_Standing UMETA(DisplayName = "Standing"),
 	ECC_Crouched UMETA(DisplayName = "Crouched"),
 };
-UENUM(BlueprintType)
-enum class EWeaponEquipped : uint8
-{
-	ECC_Unarmed UMETA(DisplayName = "Unarmed"),
-	ECC_Pistol UMETA(DisplayName = "Pistol"),
-	ECC_Rifle UMETA(DisplayName = "Rifle"),
-};
 
 /**
  *  A basic first person character
@@ -62,6 +58,9 @@ class AOnlineFPSCharacter : public ACharacter
 	/** Pawn mesh: first person view (arms; seen only by self) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* FirstPersonMesh;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* FullBodyMesh;
 
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
@@ -108,8 +107,24 @@ public:
 	
 	UPROPERTY(EditAnywhere)
 	int8 CurrentLifeValue;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AWeapon> PrimaryWeapon;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AWeapon> SecondaryWeapon;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<APaintDecal> Decal = nullptr;
+
+	UPROPERTY(EditAnywhere)
+	USkeletalMeshComponent* WeaponMeshComponent;
+	
 protected:
 
+	UFUNCTION(BlueprintCallable, Category = "Animations")
+	void UpdateAnimLayer(EWeaponType NewType);
+	
 #pragma region Input
 	/** Called from Input Actions for movement input */
 	void MoveInput(const FInputActionValue& Value);
@@ -127,7 +142,8 @@ protected:
 	void ChangeWeaponInput(const FInputActionValue& Value);
 
 #pragma endregion
-	
+
+#pragma region InputReaction
 	/** Handles aim inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoAim(float Yaw, float Pitch);
@@ -135,6 +151,7 @@ protected:
 	/** Handles move inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoMove(float Right, float Forward);
+	
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void StopMove();
 
@@ -155,10 +172,22 @@ protected:
 	
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void EndSlide();
+#pragma endregion InputReaction
+
+	UFUNCTION()
+	virtual void BeginPlay() override;
 	
-	// Change equippement
-	UFUNCTION(BlueprintCallable, Category="Input")
+	UFUNCTION()
+	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
+	
+	UFUNCTION(BlueprintCallable, CallInEditor)
 	virtual void ChangeEquippedWeapon();
+
+	UFUNCTION(BlueprintCallable)
+	void GrabWeapon(USkeletalMesh* WeaponToGrab);
+	 
+	UFUNCTION(BlueprintCallable, CallInEditor)
+	void DropWeapon();
 
 
 protected:
@@ -183,15 +212,35 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly, Category="Movement")
 	EMovementDirection MovementDirectionType;
+
+	UPROPERTY(BlueprintReadOnly, Category="Movement")
+	EWeaponType WeaponEquippedType;
+
+	UPROPERTY(EditAnywhere, Category = "Animations")
+	TMap<EWeaponType, TSubclassOf<UAnimInstance>> WeaponAnimLayers;
 	
 	UFUNCTION(BlueprintCallable, Category="Action")
 	void Attack();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_Attack(FVector_NetQuantize Start, FVector_NetQuantizeNormal Forward);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void SpawnDecals(FVector_NetQuantize SpawnLocation, FVector_NetQuantizeNormal ImpactNormal);
+	
+	UFUNCTION(Client, Unreliable)
+	void Client_ShowHitMarker(bool bShotPlayer);
 	
 	UFUNCTION(BlueprintCallable, Category="Action")
 	void ReceiveDamage(int ReceiveDamage);
 	
 private:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
 	FTimerHandle SlideTimerHandle;
+
+	UPROPERTY()
+	TObjectPtr<AWeapon> EquippedWeapon = nullptr;
 	
 	UPROPERTY()
 	bool bCanMove = true;

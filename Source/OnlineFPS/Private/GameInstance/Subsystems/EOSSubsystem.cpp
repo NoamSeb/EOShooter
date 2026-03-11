@@ -116,7 +116,7 @@ void UEOSSubsystem::CreateSession(bool isDedicatedServer, bool isLanServer, int3
 			SessionSettings.bAllowJoinInProgress = true;
 			SessionSettings.Set(TEXT("SEARCH_KEYWORDS"), FString("RandomHi"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 			SessionPtr->OnCreateSessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnCreateSessionComplete);
-			SessionPtr->CreateSession(0, FName("MainSession"), SessionSettings);
+			SessionPtr->CreateSession(0, FName(GetPlayerUsername()), SessionSettings);
 		}
 	}
 }
@@ -162,7 +162,7 @@ void UEOSSubsystem::DestroySession()
 		if (SessionPtr)
 		{
 			SessionPtr->OnDestroySessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnDestroySessionComplete);
-			SessionPtr->DestroySession(FName("MainSession"));
+			SessionPtr->DestroySession(FName(GetPlayerUsername()));
 		}
 	}
 }
@@ -181,17 +181,15 @@ void UEOSSubsystem::FindSession()
 		if (SessionPtr)
 		{
 			SessionSearch = MakeShareable(new FOnlineSessionSearch());
-			SessionSearch->bIsLanQuery = true;
+			SessionSearch->bIsLanQuery = false;
 			SessionSearch->MaxSearchResults = 20;
 			SessionPtr->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
 		}
 
-//#if WITH_EDITOR
-//		SessionSearch->QuerySettings.SearchParams.Empty();
-//#else
+		SessionSearch->QuerySettings.Set("SEARCH_LOBBIES", true, EOnlineComparisonOp::Equals);
 		SessionSearch->QuerySettings.Set("SEARCH_PRESENCE", true, EOnlineComparisonOp::Equals);
-		SessionSearch->QuerySettings.Set(TEXT("SEARCH_KEYWORDS"), FString("RandomHi"), EOnlineComparisonOp::Equals);
-//#endif
+		//SessionSearch->QuerySettings.Set(TEXT("SEARCH_KEYWORDS"), FString("RandomHi"), EOnlineComparisonOp::Equals);
+		
 		FindSessionsCompleteDelegateHandle = SessionPtr->OnFindSessionsCompleteDelegates.AddUObject(
 			this, &UEOSSubsystem::OnFindSessionComplete);
 		SessionPtr->FindSessions(0, SessionSearch.ToSharedRef());
@@ -209,11 +207,12 @@ void UEOSSubsystem::OnFindSessionComplete(bool bWasSuccess)
 			IOnlineSessionPtr SessionPtr = SubsystemPtr->GetSessionInterface();
 			if (SessionPtr)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("Found Session : %i"), SessionSearch->SearchResults.Num());
 				if (SessionSearch->SearchResults.Num() > 0)
 				{
 					SessionPtr->OnJoinSessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnJoinSessionComplete);
 					UE_LOG(LogTemp, Warning, TEXT("JOINING SESSION !"));
-					SessionPtr->JoinSession(0, FName("MainSession"), SessionSearch->SearchResults[0]);
+					SessionPtr->JoinSession(0, FName(SessionSearch->SearchResults[0].Session.OwningUserName), SessionSearch->SearchResults[0]);
 				}
 				else
 				{
@@ -243,7 +242,7 @@ void UEOSSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompl
 				IOnlineSessionPtr SessionPtr = SubsystemPtr->GetSessionInterface();
 				if (SessionPtr)
 				{
-					SessionPtr->GetResolvedConnectString(FName("MainSession"), JoinAdress);
+					SessionPtr->GetResolvedConnectString(SessionName, JoinAdress);
 					UE_LOG(LogTemp, Warning, TEXT("Join Adress : %s"), *JoinAdress);
 					if (!JoinAdress.IsEmpty())
 					{
