@@ -84,6 +84,10 @@ void AOnlineFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		// Attack
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this,
 		                                   &AOnlineFPSCharacter::AttackInput);
+
+		// Change Weapon
+		EnhancedInputComponent->BindAction(ChangeWeaponAction, ETriggerEvent::Triggered, this,
+		                                   &AOnlineFPSCharacter::DoChangeWeapon);
 	}
 	else
 	{
@@ -136,6 +140,7 @@ void AOnlineFPSCharacter::AttackInput(const FInputActionValue& Value)
 
 void AOnlineFPSCharacter::ChangeWeaponInput(const FInputActionValue& Value)
 {
+	ChangeEquippedWeapon();
 }
 #pragma endregion
 
@@ -239,6 +244,11 @@ void AOnlineFPSCharacter::EndSlide()
 	PlayerMovementType = EPlayerState::ECC_Idle;
 }
 
+void AOnlineFPSCharacter::DoChangeWeapon()
+{
+	ChangeEquippedWeapon();
+}
+
 #pragma endregion InputReaction
 
 void AOnlineFPSCharacter::BeginPlay()
@@ -249,7 +259,7 @@ void AOnlineFPSCharacter::BeginPlay()
 	WeaponMeshComponent->SetSkeletalMeshAsset(EquippedWeapon->WeaponMesh->GetSkeletalMeshAsset());
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	//WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, "HandGrip_R");
+	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, "HandGrip_R");
 	WeaponMeshComponent->SetCanEverAffectNavigation(false);
 	
 	if (FirstPersonMesh && FirstPersonMesh->GetAnimInstance())
@@ -283,10 +293,17 @@ void AOnlineFPSCharacter::ChangeEquippedWeapon()
 	{
 		EquippedWeapon = PrimaryWeapon.GetDefaultObject();
 	}
+	
 	WeaponEquippedType = EquippedWeapon->WeaponType;
 	WeaponMeshComponent->SetSkeletalMeshAsset(EquippedWeapon->WeaponMesh->GetSkeletalMeshAsset());
 	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, "HandGrip_R");
-	UpdateAnimLayer(WeaponEquippedType);
+	
+	if (FirstPersonMesh && FirstPersonMesh->GetAnimInstance())
+		UpdateAnimLayer(WeaponEquippedType);
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TON GRAND ONCLE CA MARCHE PAS FRR !"))
+	}
 }
 
 void AOnlineFPSCharacter::UpdateAnimLayer(EWeaponType NewType)

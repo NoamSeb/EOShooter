@@ -172,6 +172,9 @@ protected:
 	
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void EndSlide();
+
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoChangeWeapon();
 #pragma endregion InputReaction
 
 	UFUNCTION()
