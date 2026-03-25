@@ -8,6 +8,8 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "OnlineFPS.h"
+#include "Engine/DamageEvents.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Weapons/PaintDecal.h"
 
@@ -36,6 +38,11 @@ AOnlineFPSCharacter::AOnlineFPSCharacter()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
+	
+	//Create the Dead Camera Component
+	DeadCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Dead Camera"));
+	DeadCameraComponent->SetupAttachment(FirstPersonMesh, FName("Dead Camera"));
+	
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
@@ -86,7 +93,7 @@ void AOnlineFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		                                   &AOnlineFPSCharacter::AttackInput);
 
 		// Change Weapon
-		EnhancedInputComponent->BindAction(ChangeWeaponAction, ETriggerEvent::Triggered, this,
+		EnhancedInputComponent->BindAction(ChangeWeaponAction, ETriggerEvent::Completed, this,
 		                                   &AOnlineFPSCharacter::DoChangeWeapon);
 	}
 	else
@@ -254,6 +261,9 @@ void AOnlineFPSCharacter::DoChangeWeapon()
 void AOnlineFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	CurrentLifeValue = MaxLifeValue;
+	
 	EquippedWeapon = PrimaryWeapon.GetDefaultObject();
 	WeaponEquippedType = EquippedWeapon->WeaponType;
 	WeaponMeshComponent->SetSkeletalMeshAsset(EquippedWeapon->WeaponMesh->GetSkeletalMeshAsset());
@@ -270,17 +280,7 @@ void AOnlineFPSCharacter::BeginPlay()
 
 void AOnlineFPSCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 {
-	Super::NotifyActorBeginOverlap(OtherActor);
-
-	if (AWeapon* TouchedWeapon = Cast<AWeapon>(OtherActor))
-	{
-		if (EquippedWeapon != nullptr)
-			return;
-		
-		GrabWeapon(TouchedWeapon->WeaponMesh->GetSkeletalMeshAsset());
-		EquippedWeapon = TouchedWeapon;
-		OtherActor->Destroy();
-	}
+	UE_LOG(LogTemp, Warning, TEXT("Overlap actor : %s"), *OtherActor->GetName())
 }
 
 void AOnlineFPSCharacter::ChangeEquippedWeapon()
@@ -314,12 +314,10 @@ void AOnlineFPSCharacter::UpdateAnimLayer(EWeaponType NewType)
 
 		if (FirstPersonMesh && LayerClass)
 		{
-			// 2. On récupère l'AnimInstance principal (Le Cerveau)
 			UAnimInstance* MainAnimInst = FirstPersonMesh->GetAnimInstance();
             
 			if (MainAnimInst)
 			{
-				// 3. LA MAGIE : On lie la nouvelle "cartouche" d'animations
 				MainAnimInst->LinkAnimClassLayers(LayerClass);
 			}else
 			{
@@ -329,26 +327,14 @@ void AOnlineFPSCharacter::UpdateAnimLayer(EWeaponType NewType)
 	}
 }
 
-void AOnlineFPSCharacter::GrabWeapon(USkeletalMesh* WeaponToGrab)
-{
-	WeaponMeshComponent->SetSkeletalMeshAsset(WeaponToGrab);
-	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, "HandGrip_R");
-}
-
-void AOnlineFPSCharacter::DropWeapon()
-{
-	WeaponMeshComponent->SetSkeletalMeshAsset(nullptr);
-	AWeapon* DroppedWeapon = GetWorld()->SpawnActor<AWeapon>(EquippedWeapon.GetClass(), GetActorLocation(), GetActorRotation());
-	EquippedWeapon = nullptr;
-}
-
 /// Client Side Attack Function
 void AOnlineFPSCharacter::Attack()
 {
+	// FVector Start = EquippedWeapon->ShootingBulletPoint-
 	FVector Start = GetFirstPersonCameraComponent()->GetComponentLocation();
 	FVector ForwardCam = GetFirstPersonCameraComponent()->GetForwardVector();
 
-	Server_Attack_Implementation(Start, ForwardCam);
+	Server_Attack(Start, ForwardCam);
 }
 
 /// Server Side Attack Function
@@ -362,7 +348,7 @@ void AOnlineFPSCharacter::Server_Attack_Implementation(FVector_NetQuantize Start
 	FVector End = Start + (Forward * (WeaponRange * 100.f));
 
 	FHitResult HitResult;
-	FCollisionQueryParams TraceParams(FName(TEXT("LineTrace")), true, this);
+	FCollisionQueryParams TraceParams(FName(TEXT("LineTrace")), false, this);
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(
 		HitResult,
@@ -378,7 +364,7 @@ void AOnlineFPSCharacter::Server_Attack_Implementation(FVector_NetQuantize Start
 	{
 		if (AOnlineFPSCharacter* ActorToDamage = Cast<AOnlineFPSCharacter>(HitResult.GetActor()))
 		{
-			ActorToDamage->ReceiveDamage(EquippedWeapon->WeaponDamage);
+			UGameplayStatics::ApplyDamage(ActorToDamage, EquippedWeapon->WeaponDamage, GetController(), this, UDamageType::StaticClass());
 			Client_ShowHitMarker(true);
 		}
 		else
@@ -399,7 +385,7 @@ void AOnlineFPSCharacter::Server_Attack_Implementation(FVector_NetQuantize Start
 /// @return true if the player is can attack, false if the player can't attack
 bool AOnlineFPSCharacter::Server_Attack_Validate(FVector_NetQuantize Start, FVector_NetQuantizeNormal Forward)
 {
-	float Tolerance = 100.0f;
+	float Tolerance = 2000.0f;
 	
 	FVector ActorLocation = GetActorLocation();
 	
@@ -433,11 +419,55 @@ void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLo
 
 void AOnlineFPSCharacter::Client_ShowHitMarker_Implementation(bool bShotPlayer)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Player >Touched"));
+	if (bShotPlayer)
+		UE_LOG(LogTemp, Warning, TEXT("Player >Touched"));
 }
 
-void AOnlineFPSCharacter::ReceiveDamage(int ReceiveDamage)
+float AOnlineFPSCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
-	CurrentLifeValue -= ReceiveDamage;
-	GEngine->AddOnScreenDebugMessage(true, 1.f, FColor::Green, FString::Printf(TEXT("Current life : %i"), CurrentLifeValue));
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	if (ActualDamage <= 0.f) return 0.f;
+	
+	CurrentLifeValue -= ActualDamage;
+	
+	UE_LOG(LogTemp, Warning, TEXT("TakeDamage TRIGGERED ! Dégâts : %f | Santé : %i"), ActualDamage, CurrentLifeValue);
+
+	if (CurrentLifeValue <= 0.f)
+	{
+		Die();
+	}else
+	{
+		OnRep_CurrentLifeValue();
+	}
+
+	return ActualDamage;
+}
+
+void AOnlineFPSCharacter::OnRep_CurrentLifeValue()
+{
+	// This runs on all Clients whenever CurrentLifeValue changes
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::Printf(TEXT("Health Updated: %i"), CurrentLifeValue));
+}
+
+void AOnlineFPSCharacter::Die()
+{
+	GetCharacterMovement()->DisableMovement();
+	GetCharacterMovement()->StopMovementImmediately();
+	
+	DetachFromControllerPendingDestroy();
+	
+	FirstPersonMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+	FirstPersonMesh->SetSimulatePhysics(true);
+	FirstPersonMesh->WakeAllRigidBodies();
+	
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+	FirstPersonCameraComponent->SetActive(false);
+	DeadCameraComponent->SetActive(true);
+	OnDie();
+}
+
+void AOnlineFPSCharacter::Respawn()
+{
 }

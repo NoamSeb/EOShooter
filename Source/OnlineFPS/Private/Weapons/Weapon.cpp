@@ -15,13 +15,15 @@ AWeapon::AWeapon()
 	WeaponCollideBox = CreateDefaultSubobject<UBoxComponent>(TEXT("Weapon Collision"));
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Weapon Mesh"));
 	WeaponMesh->SetupAttachment(WeaponCollideBox);
+	
+	ShootingBulletPoint = CreateDefaultSubobject<USceneComponent>(TEXT("Shooting Point"));
+	ShootingBulletPoint->SetupAttachment(WeaponCollideBox);
 }
 
 // Called when the game starts or when spawned
 void AWeapon::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame

@@ -65,12 +65,18 @@ class AOnlineFPSCharacter : public ACharacter
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCameraComponent;
+	
+	/** Dead camera */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Components", meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* DeadCameraComponent;
+
 
 protected:
 
 	UPROPERTY()
 	FVector2D MovementVector;
 	
+#pragma region Inputs
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* JumpAction;
@@ -99,14 +105,16 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* ChangeWeaponAction;
 	
+#pragma endregion Inputs
+	
 public:
 	AOnlineFPSCharacter();
 	
-	UPROPERTY(EditAnywhere)
-	int8 MaxLifeValue;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	int MaxLifeValue;
 	
-	UPROPERTY(EditAnywhere)
-	int8 CurrentLifeValue;
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentLifeValue, BlueprintReadOnly, Category = "Stats")
+	int CurrentLifeValue;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AWeapon> PrimaryWeapon;
@@ -186,13 +194,6 @@ protected:
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	virtual void ChangeEquippedWeapon();
 
-	UFUNCTION(BlueprintCallable)
-	void GrabWeapon(USkeletalMesh* WeaponToGrab);
-	 
-	UFUNCTION(BlueprintCallable, CallInEditor)
-	void DropWeapon();
-
-
 protected:
 
 	/** Set up input action bindings */
@@ -201,6 +202,7 @@ protected:
 
 public:
 
+#pragma region PROPERTIES
 	/** Returns the first person mesh **/
 	USkeletalMeshComponent* GetFirstPersonMesh() const { return FirstPersonMesh; }
 
@@ -221,7 +223,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Animations")
 	TMap<EWeaponType, TSubclassOf<UAnimInstance>> WeaponAnimLayers;
+#pragma endregion	
 	
+#pragma region FUNCTIONS
 	UFUNCTION(BlueprintCallable, Category="Action")
 	void Attack();
 
@@ -234,15 +238,28 @@ public:
 	UFUNCTION(Client, Unreliable)
 	void Client_ShowHitMarker(bool bShotPlayer);
 	
-	UFUNCTION(BlueprintCallable, Category="Action")
-	void ReceiveDamage(int ReceiveDamage);
+	UFUNCTION()
+	void OnRep_CurrentLifeValue();
+	
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	
+	UFUNCTION(BlueprintCallable, Category="Life")
+	void Die();
+	
+	UFUNCTION(BlueprintImplementableEvent, Category="Life")
+	void OnDie();
+	
+	UFUNCTION(BlueprintCallable, Category="Life")
+	void Respawn();
+	
+#pragma endregion
 	
 private:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	FTimerHandle SlideTimerHandle;
 
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	TObjectPtr<AWeapon> EquippedWeapon = nullptr;
 	
 	UPROPERTY()
