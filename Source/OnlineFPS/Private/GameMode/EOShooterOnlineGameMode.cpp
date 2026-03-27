@@ -43,3 +43,11 @@ void AEOShooterOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 	}
 	
 }
+
+void AEOShooterOnlineGameMode::OnPlayerKilled(AController* Victim, AController* Killer)
+{
+}
+
+void AEOShooterOnlineGameMode::RequestRespawn(AController* Controller)
+{
+}

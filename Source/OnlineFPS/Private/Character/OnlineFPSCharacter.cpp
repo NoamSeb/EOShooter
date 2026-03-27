@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "OnlineFPS.h"
 #include "Engine/DamageEvents.h"
+#include "GameMode/EOShooterOnlineGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Weapons/PaintDecal.h"
@@ -435,7 +436,7 @@ float AOnlineFPSCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 
 	if (CurrentLifeValue <= 0.f)
 	{
-		Die();
+		Die(EventInstigator);
 	}else
 	{
 		OnRep_CurrentLifeValue();
@@ -450,7 +451,7 @@ void AOnlineFPSCharacter::OnRep_CurrentLifeValue()
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::Printf(TEXT("Health Updated: %i"), CurrentLifeValue));
 }
 
-void AOnlineFPSCharacter::Die()
+void AOnlineFPSCharacter::Die(AController* killer)
 {
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
@@ -465,9 +466,14 @@ void AOnlineFPSCharacter::Die()
 	
 	FirstPersonCameraComponent->SetActive(false);
 	DeadCameraComponent->SetActive(true);
-	OnDie();
-}
 
-void AOnlineFPSCharacter::Respawn()
-{
+	AGameModeBase* CurrentGM = GetWorld()->GetAuthGameMode();
+	AEOShooterOnlineGameMode* BaseGameMode = Cast<AEOShooterOnlineGameMode>(CurrentGM);
+
+	if (BaseGameMode)
+	{
+		BaseGameMode->OnPlayerKilled(this->GetController(), killer);
+	}
+	
+	OnDie();
 }

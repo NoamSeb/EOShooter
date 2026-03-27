@@ -183,6 +183,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoChangeWeapon();
+	
 #pragma endregion InputReaction
 
 	UFUNCTION()
@@ -244,13 +245,10 @@ public:
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 	
 	UFUNCTION(BlueprintCallable, Category="Life")
-	void Die();
+	void Die(AController* killer);
 	
 	UFUNCTION(BlueprintImplementableEvent, Category="Life")
 	void OnDie();
-	
-	UFUNCTION(BlueprintCallable, Category="Life")
-	void Respawn();
 	
 #pragma endregion
 	
