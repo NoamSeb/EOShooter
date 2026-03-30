@@ -8,10 +8,12 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "OnlineFPS.h"
+#include "Components/DecalComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameMode/EOShooterOnlineGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "PlayerState/OnlinePlayerState.h"
 #include "Weapons/PaintDecal.h"
 
 AOnlineFPSCharacter::AOnlineFPSCharacter()
@@ -416,6 +418,31 @@ void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLo
 {
 	FRotator TargetRotation = ImpactNormal.Rotation();
 	AActor* SpawnedDecal = GetWorld()->SpawnActor<AActor>(Decal, SpawnLocation, TargetRotation);
+
+	if (SpawnedDecal)
+	{
+		// 2. Récupérer le composant Decal (ou Mesh) de l'Actor
+		UDecalComponent* DecalComp = Cast<UDecalComponent>(SpawnedDecal->GetComponentByClass(UDecalComponent::StaticClass()));
+
+		if (DecalComp)
+		{
+			// 3. Créer une instance dynamique du matériau actuel
+			UMaterialInstanceDynamic* DynMaterial = DecalComp->CreateDynamicMaterialInstance();
+
+			if (DynMaterial)
+			{
+				// 4. Appliquer la FColor de ton Controller
+				// On convertit FColor en FLinearColor car les paramètres de Material utilisent le Linear
+				AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
+				AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
+				
+				ETeamRole MyTeam = PS->GetTeam();
+				FColor TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
+				
+				DynMaterial->SetVectorParameterValue(TEXT("TeamColor"), FLinearColor(TeamColor));
+			}
+		}
+	}
 }
 
 void AOnlineFPSCharacter::Client_ShowHitMarker_Implementation(bool bShotPlayer)

@@ -14,7 +14,9 @@
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystemTypes.h"
 #include "GameInstance/EOShooterGameInstance.h"
+#include "GameMode/EOShooterOnlineGameMode.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "PlayerState/OnlinePlayerState.h"
 
 
 AOnlineFPSPlayerController::AOnlineFPSPlayerController()
@@ -43,7 +45,19 @@ void AOnlineFPSPlayerController::BeginPlay()
 			UE_LOG(LogOnlineFPS, Error, TEXT("Could not spawn mobile controls widget."));
 
 		}
+	}
 
+	AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
+	AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
+
+	if (PS && GM)
+	{
+		ETeamRole MyTeam = PS->GetTeam();
+		// On récupère les infos dynamiquement sans savoir combien d'équipes existent
+		FTeamInfo MyTeamDetails = GM->ConfiguredTeams[MyTeam];
+		
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, MyTeamDetails.TeamColor, 
+			FString::Printf(TEXT("Je suis dans l'équipe : %s"), *MyTeamDetails.TeamName));
 	}
 }
 

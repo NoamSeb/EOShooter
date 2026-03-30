@@ -3,6 +3,10 @@
 
 #include "GameMode/Mods/TDMGameMode.h"
 
+#include "PlayerState/OnlinePlayerState.h"
+
+class AOnlinePlayerState;
+
 void ATDMGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
@@ -18,4 +22,16 @@ void ATDMGameMode::BeginPlay()
 void ATDMGameMode::OnPlayerKilled(AController* Victim, AController* Killer)
 {
 	Super::OnPlayerKilled(Victim, Killer);
+
+	if (Victim)
+	{
+		AOnlinePlayerState* VictimPS = Victim->GetPlayerState<AOnlinePlayerState>();
+        
+		if (VictimPS)
+		{
+			ETeamRole VictimTeam = VictimPS->GetTeam();
+			
+			UpdateTeamScore(VictimTeam, -1);
+		}
+	}
 }

@@ -29,9 +29,6 @@ UCLASS()
 class ONLINEFPS_API AEOShooterOnlineGameMode : public AGameMode
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Teams")
-	TMap<ETeamRole, FTeamInfo> ConfiguredTeams;
 	
 public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
@@ -39,4 +36,15 @@ public:
 	virtual void OnPlayerKilled(AController* Victim, AController* Killer);
 	
 	void RequestRespawn(AController* Controller);
+
+	UFUNCTION()
+	void OnRep_TeamScores();
+	
+	void UpdateTeamScore(ETeamRole TeamToUpdate, int value);
+
+	UPROPERTY(EditAnywhere, Category = "Teams")
+	TMap<ETeamRole, FTeamInfo> ConfiguredTeams;
+
+	UPROPERTY(BlueprintReadOnly)
+	TMap<ETeamRole, int32> TeamScores;
 };

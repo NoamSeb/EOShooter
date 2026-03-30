@@ -51,3 +51,15 @@ void AEOShooterOnlineGameMode::OnPlayerKilled(AController* Victim, AController* 
 void AEOShooterOnlineGameMode::RequestRespawn(AController* Controller)
 {
 }
+
+void AEOShooterOnlineGameMode::OnRep_TeamScores()
+{
+	UE_LOG(LogTemp, Log, TEXT("Les scores ont été mis à jour sur le client !"));
+}
+
+void AEOShooterOnlineGameMode::UpdateTeamScore(ETeamRole TeamToUpdate, int value)
+{
+	TeamScores[TeamToUpdate] += value;
+	
+	OnRep_TeamScores();
+}

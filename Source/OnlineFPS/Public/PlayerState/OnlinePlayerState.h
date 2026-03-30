@@ -15,6 +15,9 @@ UCLASS()
 class ONLINEFPS_API AOnlinePlayerState : public APlayerState
 {
 	GENERATED_BODY()
-
+	
 	ETeamRole CurrentTeam;
+
+public:
+	ETeamRole GetTeam();
 };

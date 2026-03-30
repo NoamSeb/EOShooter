@@ -2,3 +2,8 @@
 
 
 #include "PlayerState/OnlinePlayerState.h"
+
+ETeamRole AOnlinePlayerState::GetTeam()
+{
+	return CurrentTeam;
+}
