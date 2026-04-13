@@ -20,4 +20,6 @@ class ONLINEFPS_API AOnlinePlayerState : public APlayerState
 
 public:
 	ETeamRole GetTeam();
+
+	void SetTeam(ETeamRole NewTeam);
 };

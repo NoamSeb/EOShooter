@@ -437,7 +437,12 @@ void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLo
 				AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
 				
 				ETeamRole MyTeam = PS->GetTeam();
-				FColor TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
+				FColor TeamColor;
+				TeamColor = FColor::White;
+				if (MyTeam != ETeamRole::None)
+				{
+					TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
+				}
 				
 				DynMaterial->SetVectorParameterValue(TEXT("TeamColor"), FLinearColor(TeamColor));
 			}

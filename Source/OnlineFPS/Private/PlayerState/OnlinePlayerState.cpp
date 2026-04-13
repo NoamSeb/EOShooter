@@ -7,3 +7,8 @@ ETeamRole AOnlinePlayerState::GetTeam()
 {
 	return CurrentTeam;
 }
+
+void AOnlinePlayerState::SetTeam(ETeamRole NewTeam)
+{
+	CurrentTeam = NewTeam;
+}

@@ -10,6 +10,8 @@ class AOnlinePlayerState;
 void ATDMGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+
+	NewPlayer->GetPlayerState<AOnlinePlayerState>()->SetTeam(ETeamRole::TeamAlpha);
 }
 
 void ATDMGameMode::BeginPlay()
