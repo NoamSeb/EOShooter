@@ -8,6 +8,7 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "OnlineFPS.h"
+#include "Character/OnlineFPSPlayerController.h"
 #include "Components/DecalComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameMode/EOShooterOnlineGameMode.h"
@@ -65,6 +66,8 @@ void AOnlineFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 	DOREPLIFETIME(AOnlineFPSCharacter, CurrentLifeValue);
 	DOREPLIFETIME(AOnlineFPSCharacter, PlayerMovementType);
+	DOREPLIFETIME(AOnlineFPSCharacter, PlayerPosture);
+	DOREPLIFETIME(AOnlineFPSCharacter, MovementDirectionType);
 	DOREPLIFETIME(AOnlineFPSCharacter, EquippedWeapon);
 }
 
@@ -485,27 +488,34 @@ void AOnlineFPSCharacter::OnRep_CurrentLifeValue()
 
 void AOnlineFPSCharacter::Die(AController* killer)
 {
+	CurrentLifeValue = 0.f;
+	AOnlineFPSPlayerController* VictimController = GetController<AOnlineFPSPlayerController>();
+
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
 	
-	DetachFromControllerPendingDestroy();
-	
+	//DetachFromControllerPendingDestroy();
+    
+	// Logique de Ragdoll
 	FirstPersonMesh->SetCollisionProfileName(TEXT("Ragdoll"));
 	FirstPersonMesh->SetSimulatePhysics(true);
 	FirstPersonMesh->WakeAllRigidBodies();
-	
+    
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	
+    
 	FirstPersonCameraComponent->SetActive(false);
 	DeadCameraComponent->SetActive(true);
-
-	AGameModeBase* CurrentGM = GetWorld()->GetAuthGameMode();
-	AEOShooterOnlineGameMode* BaseGameMode = Cast<AEOShooterOnlineGameMode>(CurrentGM);
-
-	if (BaseGameMode)
-	{
-		BaseGameMode->OnPlayerKilled(this->GetController(), killer);
-	}
 	
-	OnDie();
+	if (HasAuthority())
+	{
+		AGameModeBase* CurrentGM = GetWorld()->GetAuthGameMode();
+		AEOShooterOnlineGameMode* BaseGameMode = Cast<AEOShooterOnlineGameMode>(CurrentGM);
+
+		if (BaseGameMode)
+		{
+			BaseGameMode->OnPlayerKilled(VictimController, killer);
+		}
+	}
+    
+	OnDie(VictimController);
 }

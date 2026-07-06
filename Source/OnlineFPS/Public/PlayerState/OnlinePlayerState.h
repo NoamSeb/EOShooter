@@ -19,7 +19,9 @@ class ONLINEFPS_API AOnlinePlayerState : public APlayerState
 	ETeamRole CurrentTeam;
 
 public:
+	UFUNCTION(BlueprintCallable, Category = "OnlinePlayerState")
 	ETeamRole GetTeam();
 
+	UFUNCTION(BlueprintCallable)
 	void SetTeam(ETeamRole NewTeam);
 };

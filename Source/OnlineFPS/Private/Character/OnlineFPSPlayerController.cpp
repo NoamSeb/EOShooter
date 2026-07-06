@@ -104,3 +104,25 @@ void AOnlineFPSPlayerController::OnNetCleanup(class UNetConnection* Connection)
 	}
 	Super::OnNetCleanup(Connection);
 }
+
+bool AOnlineFPSPlayerController::ServerRequestRespawn_Validate()
+{
+	AOnlineFPSCharacter* MyCharacter = Cast<AOnlineFPSCharacter>(GetPawn());
+	
+	if (MyCharacter->CurrentLifeValue<=0)
+	{
+		return true;
+	}
+	return false;
+}
+
+void AOnlineFPSPlayerController::ServerRequestRespawn_Implementation()
+{
+	if (AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>())
+	{
+		GM->RequestRespawn(this);
+	}else
+	{
+		UE_LOG(LogGameMode, Warning, TEXT("Y'a pas de controller wesh"));
+	}
+}

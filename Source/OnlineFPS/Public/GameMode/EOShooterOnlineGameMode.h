@@ -33,18 +33,21 @@ class ONLINEFPS_API AEOShooterOnlineGameMode : public AGameMode
 public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
-	virtual void OnPlayerKilled(AController* Victim, AController* Killer);
-	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void OnPlayerKilled(AController* Victim, AController* Killer);
+
+	UFUNCTION(BlueprintCallable)
 	void RequestRespawn(AController* Controller);
 
 	UFUNCTION()
 	void OnRep_TeamScores();
 	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void UpdateTeamScore(ETeamRole TeamToUpdate, int value);
 
 	UPROPERTY(EditAnywhere, Category = "Teams")
 	TMap<ETeamRole, FTeamInfo> ConfiguredTeams;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadWrite, Category = "Teams")
 	TMap<ETeamRole, int32> TeamScores;
 };

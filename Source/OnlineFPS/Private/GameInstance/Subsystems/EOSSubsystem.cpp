@@ -116,7 +116,7 @@ void UEOSSubsystem::CreateSession(bool isDedicatedServer, bool isLanServer, int3
 			SessionSettings.bAllowJoinInProgress = true;
 			SessionSettings.Set(TEXT("SEARCH_KEYWORDS"), FString("RandomHi"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 			SessionPtr->OnCreateSessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnCreateSessionComplete);
-			SessionPtr->CreateSession(0, FName(GetPlayerUsername()), SessionSettings);
+			SessionPtr->CreateSession(0, FName("NAME_GameSession"), SessionSettings);
 		}
 	}
 }
@@ -162,7 +162,7 @@ void UEOSSubsystem::DestroySession()
 		if (SessionPtr)
 		{
 			SessionPtr->OnDestroySessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnDestroySessionComplete);
-			SessionPtr->DestroySession(FName(GetPlayerUsername()));
+			SessionPtr->DestroySession(FName("NAME_GameSession"));
 		}
 	}
 }
@@ -212,7 +212,7 @@ void UEOSSubsystem::OnFindSessionComplete(bool bWasSuccess)
 				{
 					SessionPtr->OnJoinSessionCompleteDelegates.AddUObject(this, &UEOSSubsystem::OnJoinSessionComplete);
 					UE_LOG(LogTemp, Warning, TEXT("JOINING SESSION !"));
-					SessionPtr->JoinSession(0, FName(SessionSearch->SearchResults[0].Session.OwningUserName), SessionSearch->SearchResults[0]);
+					SessionPtr->JoinSession(0, FName("NAME_GameSession"), SessionSearch->SearchResults[0]);
 				}
 				else
 				{
@@ -231,7 +231,7 @@ void UEOSSubsystem::OnFindSessionComplete(bool bWasSuccess)
 
 void UEOSSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
-	if (Result != EOnJoinSessionCompleteResult::Success)
+	if (Result == EOnJoinSessionCompleteResult::Success)
 	{
 		if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
 		{

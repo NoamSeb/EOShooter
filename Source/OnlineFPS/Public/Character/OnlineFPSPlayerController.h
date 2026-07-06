@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "OnlineFPSCharacter.h"
 #include "OnlineFPSPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -56,5 +57,7 @@ protected:
 	bool ShouldUseTouchControls() const;
 	
 	virtual void OnNetCleanup(class UNetConnection* Connection) override;
-	
+
+	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
+	void ServerRequestRespawn();
 };

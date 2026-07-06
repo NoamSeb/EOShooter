@@ -210,16 +210,16 @@ public:
 	/** Returns first person camera component **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
-	UPROPERTY(BlueprintReadOnly, Category="Movement")
+	UPROPERTY(BlueprintReadOnly, Category="Movement", Replicated)
 	EPlayerState PlayerMovementType = EPlayerState::ECC_Idle;
 	
-	UPROPERTY(BlueprintReadOnly, Category="Movement")
+	UPROPERTY(BlueprintReadOnly, Category="Movement", Replicated)
 	EPlayerPosture PlayerPosture = EPlayerPosture::ECC_Standing;
 	
-	UPROPERTY(BlueprintReadOnly, Category="Movement")
+	UPROPERTY(BlueprintReadOnly, Category="Movement", Replicated)
 	EMovementDirection MovementDirectionType;
 
-	UPROPERTY(BlueprintReadOnly, Category="Movement")
+	UPROPERTY(BlueprintReadOnly, Category="Movement", Replicated)
 	EWeaponType WeaponEquippedType;
 
 	UPROPERTY(EditAnywhere, Category = "Animations")
@@ -248,7 +248,7 @@ public:
 	void Die(AController* killer);
 	
 	UFUNCTION(BlueprintImplementableEvent, Category="Life")
-	void OnDie();
+	void OnDie(AController* DepartedController);
 	
 #pragma endregion
 	

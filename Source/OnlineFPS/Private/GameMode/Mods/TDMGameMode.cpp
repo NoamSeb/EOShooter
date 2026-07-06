@@ -21,7 +21,7 @@ void ATDMGameMode::BeginPlay()
 	OrangeTeamLives = MaxTeamAlive;
 }
 
-void ATDMGameMode::OnPlayerKilled(AController* Victim, AController* Killer)
+/*void ATDMGameMode::OnPlayerKilled(AController* Victim, AController* Killer)
 {
 	Super::OnPlayerKilled(Victim, Killer);
 
@@ -33,7 +33,20 @@ void ATDMGameMode::OnPlayerKilled(AController* Victim, AController* Killer)
 		{
 			ETeamRole VictimTeam = VictimPS->GetTeam();
 			
-			UpdateTeamScore(VictimTeam, -1);
+			UpdateTeamScore(VictimTeam, 1);
+			RequestRespawn(VictimPS->GetPlayerController());
 		}
 	}
-}
+}*/
+
+/*void ATDMGameMode::UpdateTeamScore(ETeamRole TeamToUpdate, int value)
+{
+	TeamScores[TeamToUpdate] -= value;
+	
+	if (TeamScores[TeamToUpdate] < 1)
+	{
+		FTeamInfo TeamDetails = ConfiguredTeams[TeamToUpdate];
+		UE_LOG(LogTemp, Log, TEXT("GAME OVER ! %s LOSE !"), *TeamDetails.TeamName);
+	}
+	Super::UpdateTeamScore(TeamToUpdate, value);
+}*/

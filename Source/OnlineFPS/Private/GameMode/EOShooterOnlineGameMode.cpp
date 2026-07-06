@@ -9,6 +9,7 @@
 void AEOShooterOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+	#if !WITH_EDITOR
 	if (NewPlayer)
 	{
 		FUniqueNetIdRepl UniqueNetIdRepl;
@@ -41,15 +42,26 @@ void AEOShooterOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 			UE_LOG(LogTemp, Warning, TEXT("Registering Successful for player %s"), *UniqueNetId->ToString());
 		}
 	}
+#endif
 	
 }
 
-void AEOShooterOnlineGameMode::OnPlayerKilled(AController* Victim, AController* Killer)
+void AEOShooterOnlineGameMode::OnPlayerKilled_Implementation(AController* Victim, AController* Killer)
 {
 }
 
 void AEOShooterOnlineGameMode::RequestRespawn(AController* Controller)
 {
+	if (!Controller) return;
+
+	APawn* OldPawn = Controller->GetPawn();
+
+	Controller->UnPossess();
+	if (OldPawn)
+	{
+		OldPawn->Destroy();
+	}
+	RestartPlayer(Controller);
 }
 
 void AEOShooterOnlineGameMode::OnRep_TeamScores()
@@ -57,9 +69,8 @@ void AEOShooterOnlineGameMode::OnRep_TeamScores()
 	UE_LOG(LogTemp, Log, TEXT("Les scores ont été mis à jour sur le client !"));
 }
 
-void AEOShooterOnlineGameMode::UpdateTeamScore(ETeamRole TeamToUpdate, int value)
+void AEOShooterOnlineGameMode::UpdateTeamScore_Implementation(ETeamRole TeamToUpdate, int value)
 {
-	TeamScores[TeamToUpdate] += value;
-	
 	OnRep_TeamScores();
 }
+

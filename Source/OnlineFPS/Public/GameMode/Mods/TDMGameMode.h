@@ -14,16 +14,18 @@ class ONLINEFPS_API ATDMGameMode : public AEOShooterOnlineGameMode
 {
 	GENERATED_BODY()
 
-private:
-	int8 BlueTeamLives;
-	
-	int8 OrangeTeamLives;	
-
 public:
+	UPROPERTY(BlueprintReadOnly)
+	int32 BlueTeamLives;
+	UPROPERTY(BlueprintReadOnly)
+	int32 OrangeTeamLives;	
+	
 	UPROPERTY(EditAnywhere)
 	int8 MaxTeamAlive;
 	
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void BeginPlay() override;
-	virtual void OnPlayerKilled(AController* Victim, AController* Killer) override;
+	//virtual void OnPlayerKilled(AController* Victim, AController* Killer) override;
+	//virtual void UpdateTeamScore(ETeamRole TeamToUpdate, int value) override;
+	
 };
