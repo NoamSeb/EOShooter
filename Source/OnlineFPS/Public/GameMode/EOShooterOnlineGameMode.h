@@ -44,6 +44,11 @@ public:
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void UpdateTeamScore(ETeamRole TeamToUpdate, int value);
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnScoreChangedSignature, ETeamRole, UpdatedTeam, int, NewTeamScore);
+	
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
+	FOnScoreChangedSignature OnScoreChanged;
 
 	UPROPERTY(EditAnywhere, Category = "Teams")
 	TMap<ETeamRole, FTeamInfo> ConfiguredTeams;

@@ -36,4 +36,6 @@ public:
 	void OnRep_TeamScores();
 	
 	void AddScoreToTeam(ETeamRole Team, int32 Points);
+	
+	int GetScoreFromTeam(ETeamRole TeamToGetScore);
 };

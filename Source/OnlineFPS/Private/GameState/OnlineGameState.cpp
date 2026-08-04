@@ -31,3 +31,18 @@ void AOnlineGameState::AddScoreToTeam(ETeamRole Team, int32 Points)
 		}
 	}
 }
+
+int AOnlineGameState::GetScoreFromTeam(ETeamRole TeamToGetScore)
+{
+	if (GetLocalRole() != ROLE_Authority) return -1;
+
+	for (FTeamScoreData& Data : TeamScores)
+	{
+		if (Data.Team == TeamToGetScore)
+		{
+			return Data.Score;
+			
+		}
+	}
+	return -1;
+}

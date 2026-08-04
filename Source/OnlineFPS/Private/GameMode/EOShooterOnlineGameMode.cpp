@@ -4,6 +4,7 @@
 #include "GameMode/EOShooterOnlineGameMode.h"
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystem.h"
+#include "GameState/OnlineGameState.h"
 #include "Interfaces/OnlineSessionInterface.h"
 
 void AEOShooterOnlineGameMode::PostLogin(APlayerController* NewPlayer)
@@ -72,5 +73,8 @@ void AEOShooterOnlineGameMode::OnRep_TeamScores()
 void AEOShooterOnlineGameMode::UpdateTeamScore_Implementation(ETeamRole TeamToUpdate, int value)
 {
 	OnRep_TeamScores();
+	
+	//TObjectPtr<AOnlineGameState> GS = GetGameState<AOnlineGameState>();
+	OnScoreChanged.Broadcast(TeamToUpdate, value);
 }
 
