@@ -18,11 +18,13 @@ public class OnlineFPS : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
+			"Niagara",
 			"Slate",
 			"OnlineSubsystem",
 			"OnlineSubsystemEOS",
 			"OnlineSubsystemUtils",
-			"DeveloperSettings"
+			"DeveloperSettings", 
+			"MetasoundEngine"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

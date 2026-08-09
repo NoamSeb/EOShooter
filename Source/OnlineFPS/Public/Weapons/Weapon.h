@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "MetasoundSource.h"
 #include "Weapon.generated.h"
 
 class UBoxComponent;
@@ -31,6 +32,24 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<USceneComponent> ShootingBulletPoint = nullptr;
+	
+	UPROPERTY(EditAnywhere, Category="FeedBack")
+	TObjectPtr<UMetaSoundSource> ShootSounds = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="FeedBack")
+	TSubclassOf<UCameraShakeBase> CameraShakeBase = nullptr;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="FeedBack")
+	float ShakeScale = 0.f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="FeedBack")
+	float RecoilScale = 0.f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Feedback")
+	class UForceFeedbackEffect* ForceFeedbackAsset;
+	
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="FeedBack")
+	// float HapticForce = 1.f;
 
 protected:
 	// Called when the game starts or when spawned

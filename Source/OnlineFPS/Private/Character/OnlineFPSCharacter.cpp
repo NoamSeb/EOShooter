@@ -10,18 +10,21 @@
 #include "OnlineFPS.h"
 #include "Character/OnlineFPSPlayerController.h"
 #include "Components/DecalComponent.h"
-#include "Engine/DamageEvents.h"
+#include "Haptics/HapticFeedbackEffect_Base.h"
 #include "GameMode/EOShooterOnlineGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "PlayerState/OnlinePlayerState.h"
 #include "Weapons/PaintDecal.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
+#include "GameFramework/PlayerController.h"
 
 AOnlineFPSCharacter::AOnlineFPSCharacter()
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
-	
+
 	// Create the first person mesh that will be viewed only by this character's owner
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
 
@@ -29,8 +32,8 @@ AOnlineFPSCharacter::AOnlineFPSCharacter()
 	FirstPersonMesh->SetOnlyOwnerSee(true);
 	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 	FirstPersonMesh->SetCollisionProfileName(FName("NoCollision"));
-	
-	
+
+
 	// Create the Camera Component	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	FirstPersonCameraComponent->SetupAttachment(FirstPersonMesh, FName("head"));
@@ -42,11 +45,11 @@ AOnlineFPSCharacter::AOnlineFPSCharacter()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
-	
+
 	//Create the Dead Camera Component
 	DeadCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Dead Camera"));
 	DeadCameraComponent->SetupAttachment(FirstPersonMesh, FName("Dead Camera"));
-	
+
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
@@ -95,7 +98,7 @@ void AOnlineFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		                                   &AOnlineFPSCharacter::CrouchInput);
 
 		// Attack
-		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this,
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Completed, this,
 		                                   &AOnlineFPSCharacter::AttackInput);
 
 		// Change Weapon
@@ -267,17 +270,18 @@ void AOnlineFPSCharacter::DoChangeWeapon()
 void AOnlineFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	CurrentLifeValue = MaxLifeValue;
-	
+
 	EquippedWeapon = PrimaryWeapon.GetDefaultObject();
 	WeaponEquippedType = EquippedWeapon->WeaponType;
 	WeaponMeshComponent->SetSkeletalMeshAsset(EquippedWeapon->WeaponMesh->GetSkeletalMeshAsset());
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, "HandGrip_R");
+	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform,
+	                                       "HandGrip_R");
 	WeaponMeshComponent->SetCanEverAffectNavigation(false);
-	
+
 	if (FirstPersonMesh && FirstPersonMesh->GetAnimInstance())
 	{
 		UpdateAnimLayer(WeaponEquippedType);
@@ -294,16 +298,17 @@ void AOnlineFPSCharacter::ChangeEquippedWeapon()
 	if (EquippedWeapon == PrimaryWeapon.GetDefaultObject())
 	{
 		EquippedWeapon = SecondaryWeapon.GetDefaultObject();
-		
-	}else
+	}
+	else
 	{
 		EquippedWeapon = PrimaryWeapon.GetDefaultObject();
 	}
-	
+
 	WeaponEquippedType = EquippedWeapon->WeaponType;
 	WeaponMeshComponent->SetSkeletalMeshAsset(EquippedWeapon->WeaponMesh->GetSkeletalMeshAsset());
-	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform, "HandGrip_R");
-	
+	WeaponMeshComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules::KeepRelativeTransform,
+	                                       "HandGrip_R");
+
 	if (FirstPersonMesh && FirstPersonMesh->GetAnimInstance())
 		UpdateAnimLayer(WeaponEquippedType);
 	else
@@ -321,11 +326,12 @@ void AOnlineFPSCharacter::UpdateAnimLayer(EWeaponType NewType)
 		if (FirstPersonMesh && LayerClass)
 		{
 			UAnimInstance* MainAnimInst = FirstPersonMesh->GetAnimInstance();
-            
+
 			if (MainAnimInst)
 			{
 				MainAnimInst->LinkAnimClassLayers(LayerClass);
-			}else
+			}
+			else
 			{
 				UE_LOG(LogTemp, Warning, TEXT("NO ANIM INSTANCE FOUND !"));
 			}
@@ -336,11 +342,83 @@ void AOnlineFPSCharacter::UpdateAnimLayer(EWeaponType NewType)
 /// Client Side Attack Function
 void AOnlineFPSCharacter::Attack()
 {
-	// FVector Start = EquippedWeapon->ShootingBulletPoint-
+	// const USkeletalMeshSocket* MuzzleSocket = EquippedWeapon->WeaponMesh->GetSocketByName(TEXT("Muzzle"));
+	// if (!MuzzleSocket) return;
+	// FTransform SocketLocation = MuzzleSocket->GetSocketTransform(EquippedWeapon->WeaponMesh);
+	// FVector Start = SocketLocation.GetLocation();
+
 	FVector Start = GetFirstPersonCameraComponent()->GetComponentLocation();
 	FVector ForwardCam = GetFirstPersonCameraComponent()->GetForwardVector();
 
+	// ------ CAMERA SHAKE ------
+	if (IsLocallyControlled() && EquippedWeapon && EquippedWeapon->CameraShakeBase)
+    {
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            PC->ClientStartCameraShake(
+                EquippedWeapon->CameraShakeBase, 
+                EquippedWeapon->ShakeScale
+            );
+        }
+    }
+	
+	// ------ RECOIL ------
+	if (IsLocallyControlled() && EquippedWeapon)
+	{
+		AddControllerPitchInput(-EquippedWeapon->RecoilScale); 
+	}
+	
+	APlayerController* PC = Cast<APlayerController>(GetController());
+
+	if (PC && EquippedWeapon->ForceFeedbackAsset)
+	{
+		
+		FForceFeedbackParameters Params;
+		Params.bLooping = false;
+		Params.bIgnoreTimeDilation = false;
+		Params.bPlayWhilePaused = false;
+		Params.Tag = "WeaponFire";
+		
+		PC->ClientPlayForceFeedback(
+			EquippedWeapon->ForceFeedbackAsset, 
+			Params
+		);
+	}
+	
 	Server_Attack(Start, ForwardCam);
+}
+
+void AOnlineFPSCharacter::TriggerBulletVFX_Implementation(FVector Start, FVector End)
+{
+	if (BulletTraceNiagara)
+	{
+		FRotator SpawnRotation = (End - Start).Rotation();
+
+		UNiagaraComponent* TraceComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			BulletTraceNiagara,
+			Start,
+			SpawnRotation
+		);
+
+		AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
+		AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
+
+		ETeamRole MyTeam = PS->GetTeam();
+		FColor TeamColor;
+		TeamColor = FColor::White;
+		if (MyTeam != ETeamRole::None)
+		{
+			TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
+		}
+		
+		if (TraceComponent)
+		{
+			TraceComponent->SetVectorParameter(FName("User.Start"), Start);
+			TraceComponent->SetVectorParameter(FName("User.Target"), End);
+			TraceComponent->SetColorParameter(FName("User.TraceColor"), TeamColor);
+		}
+	}
 }
 
 /// Server Side Attack Function
@@ -348,8 +426,16 @@ void AOnlineFPSCharacter::Attack()
 /// @param Forward Direction in which the Line Trace should Go
 void AOnlineFPSCharacter::Server_Attack_Implementation(FVector_NetQuantize Start, FVector_NetQuantizeNormal Forward)
 {
-	float WeaponRange = EquippedWeapon? EquippedWeapon->WeaponRange : 10.f;
+	if (!EquippedWeapon || !EquippedWeapon->ShootSounds) return;
+
+	UGameplayStatics::PlaySoundAtLocation(
+		this, 
+		EquippedWeapon->ShootSounds, 
+		EquippedWeapon->GetActorLocation()
+	);
 	
+	float WeaponRange = EquippedWeapon ? EquippedWeapon->WeaponRange : 10.f;
+
 	//Multiply by 100.f because 100 Unreal units are equal to 1 meter
 	FVector End = Start + (Forward * (WeaponRange * 100.f));
 
@@ -363,24 +449,26 @@ void AOnlineFPSCharacter::Server_Attack_Implementation(FVector_NetQuantize Start
 		ECC_Visibility,
 		TraceParams
 	);
-	
-	DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1.0f);
-	
+
+	// DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1.0f);
+
+	TriggerBulletVFX(Start, End);
+
 	if (bHit && HitResult.GetActor())
 	{
 		if (AOnlineFPSCharacter* ActorToDamage = Cast<AOnlineFPSCharacter>(HitResult.GetActor()))
 		{
-			UGameplayStatics::ApplyDamage(ActorToDamage, EquippedWeapon->WeaponDamage, GetController(), this, UDamageType::StaticClass());
+			UGameplayStatics::ApplyDamage(ActorToDamage, EquippedWeapon->WeaponDamage, GetController(), this,
+			                              UDamageType::StaticClass());
 			Client_ShowHitMarker(true);
 		}
 		else
 		{
 			Client_ShowHitMarker(false);
 		}
-				
-		
+
 		UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitResult.GetActor()->GetName());
-		
+
 		SpawnDecals_Implementation(HitResult.ImpactPoint, HitResult.ImpactNormal);
 	}
 }
@@ -392,32 +480,32 @@ void AOnlineFPSCharacter::Server_Attack_Implementation(FVector_NetQuantize Start
 bool AOnlineFPSCharacter::Server_Attack_Validate(FVector_NetQuantize Start, FVector_NetQuantizeNormal Forward)
 {
 	float Tolerance = 2000.0f;
-	
+
 	FVector ActorLocation = GetActorLocation();
-	
+
 	float Distance = FVector::Dist(Start, ActorLocation);
-	
+
 	if (Distance > Tolerance)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Triche détectée : Distance de tir trop grande !"));
 		return false;
 	}
-	
+
 	if (!Forward.IsNormalized())
 	{
 		return false;
 	}
-	
+
 	if (CurrentLifeValue <= 0 && PlayerMovementType == EPlayerState::ECC_Reloading)
 	{
-		return false;	
+		return false;
 	}
-	
+
 	return true;
-	
 }
 
-void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLocation, FVector_NetQuantizeNormal ImpactNormal)
+void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLocation,
+                                                     FVector_NetQuantizeNormal ImpactNormal)
 {
 	FRotator TargetRotation = ImpactNormal.Rotation();
 	AActor* SpawnedDecal = GetWorld()->SpawnActor<AActor>(Decal, SpawnLocation, TargetRotation);
@@ -425,7 +513,8 @@ void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLo
 	if (SpawnedDecal)
 	{
 		// 2. Récupérer le composant Decal (ou Mesh) de l'Actor
-		UDecalComponent* DecalComp = Cast<UDecalComponent>(SpawnedDecal->GetComponentByClass(UDecalComponent::StaticClass()));
+		UDecalComponent* DecalComp = Cast<UDecalComponent>(
+			SpawnedDecal->GetComponentByClass(UDecalComponent::StaticClass()));
 
 		if (DecalComp)
 		{
@@ -438,7 +527,7 @@ void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLo
 				// On convertit FColor en FLinearColor car les paramètres de Material utilisent le Linear
 				AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
 				AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
-				
+
 				ETeamRole MyTeam = PS->GetTeam();
 				FColor TeamColor;
 				TeamColor = FColor::White;
@@ -446,7 +535,7 @@ void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLo
 				{
 					TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
 				}
-				
+
 				DynMaterial->SetVectorParameterValue(TEXT("TeamColor"), FLinearColor(TeamColor));
 			}
 		}
@@ -459,20 +548,22 @@ void AOnlineFPSCharacter::Client_ShowHitMarker_Implementation(bool bShotPlayer)
 		UE_LOG(LogTemp, Warning, TEXT("Player >Touched"));
 }
 
-float AOnlineFPSCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
+float AOnlineFPSCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+                                      class AController* EventInstigator, AActor* DamageCauser)
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	
+
 	if (ActualDamage <= 0.f) return 0.f;
-	
+
 	CurrentLifeValue -= ActualDamage;
-	
+
 	UE_LOG(LogTemp, Warning, TEXT("TakeDamage TRIGGERED ! Dégâts : %f | Santé : %i"), ActualDamage, CurrentLifeValue);
 
 	if (CurrentLifeValue <= 0.f)
 	{
 		Die(EventInstigator);
-	}else
+	}
+	else
 	{
 		OnRep_CurrentLifeValue();
 	}
@@ -483,7 +574,8 @@ float AOnlineFPSCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 void AOnlineFPSCharacter::OnRep_CurrentLifeValue()
 {
 	// This runs on all Clients whenever CurrentLifeValue changes
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::Printf(TEXT("Health Updated: %i"), CurrentLifeValue));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red,
+	                                 FString::Printf(TEXT("Health Updated: %i"), CurrentLifeValue));
 }
 
 void AOnlineFPSCharacter::Die(AController* killer)
@@ -493,19 +585,19 @@ void AOnlineFPSCharacter::Die(AController* killer)
 
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
-	
+
 	//DetachFromControllerPendingDestroy();
-    
+
 	// Logique de Ragdoll
 	FirstPersonMesh->SetCollisionProfileName(TEXT("Ragdoll"));
 	FirstPersonMesh->SetSimulatePhysics(true);
 	FirstPersonMesh->WakeAllRigidBodies();
-    
+
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    
+
 	FirstPersonCameraComponent->SetActive(false);
 	DeadCameraComponent->SetActive(true);
-	
+
 	if (HasAuthority())
 	{
 		AGameModeBase* CurrentGM = GetWorld()->GetAuthGameMode();
@@ -516,6 +608,6 @@ void AOnlineFPSCharacter::Die(AController* killer)
 			BaseGameMode->OnPlayerKilled(VictimController, killer);
 		}
 	}
-    
+
 	OnDie(VictimController);
 }

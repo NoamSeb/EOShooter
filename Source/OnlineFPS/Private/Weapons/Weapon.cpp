@@ -2,7 +2,6 @@
 
 
 #include "Weapons/Weapon.h"
-
 #include "Components/BoxComponent.h"
 
 
@@ -31,4 +30,3 @@ void AWeapon::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
-

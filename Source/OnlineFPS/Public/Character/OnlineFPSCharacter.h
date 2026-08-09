@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Weapons/Weapon.h"
+#include "NiagaraSystem.h"
 #include "OnlineFPSCharacter.generated.h"
 
 class UInputComponent;
@@ -224,6 +225,11 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Animations")
 	TMap<EWeaponType, TSubclassOf<UAnimInstance>> WeaponAnimLayers;
+	
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UNiagaraSystem> BulletTraceNiagara = nullptr;
+	
 #pragma endregion	
 	
 #pragma region FUNCTIONS
@@ -232,6 +238,9 @@ public:
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_Attack(FVector_NetQuantize Start, FVector_NetQuantizeNormal Forward);
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void TriggerBulletVFX(FVector Start, FVector End);
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void SpawnDecals(FVector_NetQuantize SpawnLocation, FVector_NetQuantizeNormal ImpactNormal);
