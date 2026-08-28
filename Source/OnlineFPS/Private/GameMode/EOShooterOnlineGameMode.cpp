@@ -4,6 +4,7 @@
 #include "GameMode/EOShooterOnlineGameMode.h"
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystem.h"
+#include "Character/OnlineFPSCharacter.h"
 #include "GameState/OnlineGameState.h"
 #include "Interfaces/OnlineSessionInterface.h"
 
@@ -63,6 +64,10 @@ void AEOShooterOnlineGameMode::RequestRespawn(AController* Controller)
 		OldPawn->Destroy();
 	}
 	RestartPlayer(Controller);
+	if (AOnlineFPSCharacter* SpawnedChar = Cast<AOnlineFPSCharacter>(Controller->GetPawn()))
+	{
+		SpawnedChar->EnableInvulnerability();
+	}
 }
 
 void AEOShooterOnlineGameMode::OnRep_TeamScores()

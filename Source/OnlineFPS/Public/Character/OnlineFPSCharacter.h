@@ -117,6 +117,15 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentLifeValue, BlueprintReadOnly, Category = "Stats")
 	int CurrentLifeValue;
 
+	UPROPERTY(ReplicatedUsing = OnRep_IsInvulnerable, BlueprintReadOnly, Category = "Health")
+	bool bIsInvulnerable;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health", meta = (AllowPrivateAccess = "true", ToolTip="Time in seconds in which the player is invicible after respawn."))
+	int InvulnerabilityTime = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	UMaterialInstance* ShieldMaterial;
+	
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AWeapon> PrimaryWeapon;
 
@@ -258,7 +267,9 @@ public:
 	
 	UFUNCTION(BlueprintImplementableEvent, Category="Life")
 	void OnDie(AController* DepartedController);
-	
+
+	UFUNCTION(BlueprintCallable, Category="Life")
+	void EnableInvulnerability();
 #pragma endregion
 	
 private:
@@ -271,5 +282,14 @@ private:
 	
 	UPROPERTY()
 	bool bCanMove = true;
+
+	UFUNCTION()
+	void OnRep_IsInvulnerable();
+
+	void DisableInvulnerability();
+	
+	FTimerHandle TimerHandle_Invulnerability;
+
+	UMaterialInterface* BaseOverlayMat;
 };
 

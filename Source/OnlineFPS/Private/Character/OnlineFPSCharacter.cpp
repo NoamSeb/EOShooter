@@ -10,7 +10,6 @@
 #include "OnlineFPS.h"
 #include "Character/OnlineFPSPlayerController.h"
 #include "Components/DecalComponent.h"
-#include "Haptics/HapticFeedbackEffect_Base.h"
 #include "GameMode/EOShooterOnlineGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
@@ -19,6 +18,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 
 AOnlineFPSCharacter::AOnlineFPSCharacter()
 {
@@ -72,6 +72,7 @@ void AOnlineFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(AOnlineFPSCharacter, PlayerPosture);
 	DOREPLIFETIME(AOnlineFPSCharacter, MovementDirectionType);
 	DOREPLIFETIME(AOnlineFPSCharacter, EquippedWeapon);
+	DOREPLIFETIME(AOnlineFPSCharacter, bIsInvulnerable);
 }
 
 #pragma region Input
@@ -292,6 +293,7 @@ void AOnlineFPSCharacter::NotifyActorBeginOverlap(AActor* OtherActor)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Overlap actor : %s"), *OtherActor->GetName())
 }
+#pragma region Weapon Relative
 
 void AOnlineFPSCharacter::ChangeEquippedWeapon()
 {
@@ -339,6 +341,80 @@ void AOnlineFPSCharacter::UpdateAnimLayer(EWeaponType NewType)
 	}
 }
 
+void AOnlineFPSCharacter::TriggerBulletVFX_Implementation(FVector Start, FVector End)
+{
+	if (BulletTraceNiagara)
+	{
+		FRotator SpawnRotation = (End - Start).Rotation();
+
+		UNiagaraComponent* TraceComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			BulletTraceNiagara,
+			Start,
+			SpawnRotation
+		);
+
+		AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
+		AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
+
+		ETeamRole MyTeam = PS->GetTeam();
+		FColor TeamColor;
+		TeamColor = FColor::White;
+		if (MyTeam != ETeamRole::None)
+		{
+			TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
+		}
+		
+		if (TraceComponent)
+		{
+			TraceComponent->SetVectorParameter(FName("User.Start"), Start);
+			TraceComponent->SetVectorParameter(FName("User.Target"), End);
+			TraceComponent->SetColorParameter(FName("User.TraceColor"), TeamColor);
+		}
+	}
+}
+
+void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLocation,
+													 FVector_NetQuantizeNormal ImpactNormal)
+{
+	FRotator TargetRotation = ImpactNormal.Rotation();
+	AActor* SpawnedDecal = GetWorld()->SpawnActor<AActor>(Decal, SpawnLocation, TargetRotation);
+
+	if (SpawnedDecal)
+	{
+		// 2. Récupérer le composant Decal (ou Mesh) de l'Actor
+		UDecalComponent* DecalComp = Cast<UDecalComponent>(
+			SpawnedDecal->GetComponentByClass(UDecalComponent::StaticClass()));
+
+		if (DecalComp)
+		{
+			// 3. Créer une instance dynamique du matériau actuel
+			UMaterialInstanceDynamic* DynMaterial = DecalComp->CreateDynamicMaterialInstance();
+
+			if (DynMaterial)
+			{
+				// 4. Appliquer la FColor de ton Controller
+				// On convertit FColor en FLinearColor car les paramètres de Material utilisent le Linear
+				AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
+				AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
+
+				ETeamRole MyTeam = PS->GetTeam();
+				FColor TeamColor;
+				TeamColor = FColor::White;
+				if (MyTeam != ETeamRole::None)
+				{
+					TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
+				}
+
+				DynMaterial->SetVectorParameterValue(TEXT("TeamColor"), FLinearColor(TeamColor));
+			}
+		}
+	}
+}
+
+#pragma endregion Weapon Relative
+
+#pragma region Health Relative
 /// Client Side Attack Function
 void AOnlineFPSCharacter::Attack()
 {
@@ -386,39 +462,6 @@ void AOnlineFPSCharacter::Attack()
 	}
 	
 	Server_Attack(Start, ForwardCam);
-}
-
-void AOnlineFPSCharacter::TriggerBulletVFX_Implementation(FVector Start, FVector End)
-{
-	if (BulletTraceNiagara)
-	{
-		FRotator SpawnRotation = (End - Start).Rotation();
-
-		UNiagaraComponent* TraceComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			GetWorld(),
-			BulletTraceNiagara,
-			Start,
-			SpawnRotation
-		);
-
-		AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
-		AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
-
-		ETeamRole MyTeam = PS->GetTeam();
-		FColor TeamColor;
-		TeamColor = FColor::White;
-		if (MyTeam != ETeamRole::None)
-		{
-			TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
-		}
-		
-		if (TraceComponent)
-		{
-			TraceComponent->SetVectorParameter(FName("User.Start"), Start);
-			TraceComponent->SetVectorParameter(FName("User.Target"), End);
-			TraceComponent->SetColorParameter(FName("User.TraceColor"), TeamColor);
-		}
-	}
 }
 
 /// Server Side Attack Function
@@ -504,43 +547,7 @@ bool AOnlineFPSCharacter::Server_Attack_Validate(FVector_NetQuantize Start, FVec
 	return true;
 }
 
-void AOnlineFPSCharacter::SpawnDecals_Implementation(FVector_NetQuantize SpawnLocation,
-                                                     FVector_NetQuantizeNormal ImpactNormal)
-{
-	FRotator TargetRotation = ImpactNormal.Rotation();
-	AActor* SpawnedDecal = GetWorld()->SpawnActor<AActor>(Decal, SpawnLocation, TargetRotation);
 
-	if (SpawnedDecal)
-	{
-		// 2. Récupérer le composant Decal (ou Mesh) de l'Actor
-		UDecalComponent* DecalComp = Cast<UDecalComponent>(
-			SpawnedDecal->GetComponentByClass(UDecalComponent::StaticClass()));
-
-		if (DecalComp)
-		{
-			// 3. Créer une instance dynamique du matériau actuel
-			UMaterialInstanceDynamic* DynMaterial = DecalComp->CreateDynamicMaterialInstance();
-
-			if (DynMaterial)
-			{
-				// 4. Appliquer la FColor de ton Controller
-				// On convertit FColor en FLinearColor car les paramètres de Material utilisent le Linear
-				AOnlinePlayerState* PS = GetPlayerState<AOnlinePlayerState>();
-				AEOShooterOnlineGameMode* GM = GetWorld()->GetAuthGameMode<AEOShooterOnlineGameMode>();
-
-				ETeamRole MyTeam = PS->GetTeam();
-				FColor TeamColor;
-				TeamColor = FColor::White;
-				if (MyTeam != ETeamRole::None)
-				{
-					TeamColor = GM->ConfiguredTeams[MyTeam].TeamColor;
-				}
-
-				DynMaterial->SetVectorParameterValue(TEXT("TeamColor"), FLinearColor(TeamColor));
-			}
-		}
-	}
-}
 
 void AOnlineFPSCharacter::Client_ShowHitMarker_Implementation(bool bShotPlayer)
 {
@@ -553,12 +560,10 @@ float AOnlineFPSCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	if (ActualDamage <= 0.f) return 0.f;
+	if (ActualDamage <= 0.f || bIsInvulnerable) return 0.f;
 
 	CurrentLifeValue -= ActualDamage;
-
-	UE_LOG(LogTemp, Warning, TEXT("TakeDamage TRIGGERED ! Dégâts : %f | Santé : %i"), ActualDamage, CurrentLifeValue);
-
+	
 	if (CurrentLifeValue <= 0.f)
 	{
 		Die(EventInstigator);
@@ -611,3 +616,48 @@ void AOnlineFPSCharacter::Die(AController* killer)
 
 	OnDie(VictimController);
 }
+
+void AOnlineFPSCharacter::EnableInvulnerability()
+{
+	if (!HasAuthority()) return;
+
+	bIsInvulnerable = true;
+	BaseOverlayMat = FirstPersonMesh->GetOverlayMaterial();
+	OnRep_IsInvulnerable();
+	
+	GetWorldTimerManager().SetTimer(
+		TimerHandle_Invulnerability,
+		this,
+		&AOnlineFPSCharacter::DisableInvulnerability,
+		InvulnerabilityTime,
+		false
+	);
+}
+
+void AOnlineFPSCharacter::DisableInvulnerability()
+{
+	if (!HasAuthority()) return;
+
+	bIsInvulnerable = false;
+	OnRep_IsInvulnerable();
+}
+
+void AOnlineFPSCharacter::OnRep_IsInvulnerable()
+{
+	if (bIsInvulnerable)
+	{
+		// Display Shield VFX
+		FirstPersonMesh->SetOverlayMaterial(ShieldMaterial);
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue,
+									 FString::Printf(TEXT("Shield is Up !")));
+	}
+	else
+	{
+		// Disable Shield VFX
+		FirstPersonMesh->SetOverlayMaterial(BaseOverlayMat);
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red,
+									 FString::Printf(TEXT("Shield is down !")));
+	}
+}
+
+#pragma endregion Health Relative
