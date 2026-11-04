@@ -130,7 +130,7 @@ void AOnlineFPSCharacter::LookInput(const FInputActionValue& Value)
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	// pass the axis values to the aim input
-	DoAim(LookAxisVector.X, LookAxisVector.Y);
+	DoLook(LookAxisVector.X, LookAxisVector.Y);
 }
 
 void AOnlineFPSCharacter::CrouchInput(const FInputActionValue& Value)
@@ -162,16 +162,17 @@ void AOnlineFPSCharacter::ChangeWeaponInput(const FInputActionValue& Value)
 #pragma endregion
 
 #pragma region InputReaction
-void AOnlineFPSCharacter::DoAim(float Yaw, float Pitch)
+void AOnlineFPSCharacter::DoLook(float Yaw, float Pitch)
 {
 	if (GetController())
 	{
-		PlayerMovementType = EPlayerState::ECC_Aim;
 		// pass the rotation inputs
 		AddControllerYawInput(Yaw);
 		AddControllerPitchInput(Pitch);
 	}
 }
+
+void AOnlineFPSCharacter::DoAim(float Yaw, float Pitch) {return;}
 
 void AOnlineFPSCharacter::DoMove(float Right, float Forward)
 {
@@ -239,12 +240,37 @@ void AOnlineFPSCharacter::DoCrouch()
 	PlayerPosture = EPlayerPosture::ECC_Crouched;
 	Crouch();
 }
-
 void AOnlineFPSCharacter::DoSlide()
 {
+	UCharacterMovementComponent* movementComponent = GetCharacterMovement();
+	
+	if (PlayerMovementType == EPlayerState::ECC_Slide
+		|| movementComponent == nullptr
+		|| !movementComponent->IsMovingOnGround())
+	{
+		return;
+	}
+
 	PlayerMovementType = EPlayerState::ECC_Slide;
-	GEngine->AddOnScreenDebugMessage(true, 1.f, FColor::Green, TEXT("Sliding"));
 	bCanMove = false;
+
+	if (GEngine != nullptr)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Green, TEXT("Sliding"));
+	}
+	
+	DefaultGroundFriction = movementComponent->GroundFriction;
+	DefaultBrakingDeceleration = movementComponent->BrakingDecelerationWalking;
+	movementComponent->GroundFriction = 0.f;
+	movementComponent->BrakingDecelerationWalking = 200.f; 
+	
+	FVector slideDirection = GetActorForwardVector();
+	slideDirection.Z = 0.f;
+	slideDirection.Normalize();
+
+	FVector launchVelocity = slideDirection * SlideForce;
+	LaunchCharacter(launchVelocity, true, false);
+	
 	GetWorld()->GetTimerManager().SetTimer(
 		SlideTimerHandle,
 		this,
@@ -256,10 +282,17 @@ void AOnlineFPSCharacter::DoSlide()
 
 void AOnlineFPSCharacter::EndSlide()
 {
+	UCharacterMovementComponent* movementComponent = GetCharacterMovement();
+	if (movementComponent != nullptr)
+	{
+		movementComponent->GroundFriction = DefaultGroundFriction;
+		movementComponent->BrakingDecelerationWalking = DefaultBrakingDeceleration;
+	}
+
 	bCanMove = true;
-	PlayerPosture = EPlayerPosture::ECC_Crouched;
 	PlayerMovementType = EPlayerState::ECC_Idle;
 }
+
 
 void AOnlineFPSCharacter::DoChangeWeapon()
 {

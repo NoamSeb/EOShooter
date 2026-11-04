@@ -138,6 +138,9 @@ public:
 	UPROPERTY(EditAnywhere)
 	USkeletalMeshComponent* WeaponMeshComponent;
 	
+	UPROPERTY(EditAnywhere)
+	float SlideForce = 900.f;
+	
 protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Animations")
@@ -163,6 +166,9 @@ protected:
 
 #pragma region InputReaction
 	/** Handles aim inputs from either controls or UI interfaces */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void DoLook(float Yaw, float Pitch);
+	
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoAim(float Yaw, float Pitch);
 
@@ -291,5 +297,8 @@ private:
 	FTimerHandle TimerHandle_Invulnerability;
 
 	UMaterialInterface* BaseOverlayMat;
+	
+	float DefaultGroundFriction = 8.f;
+	float DefaultBrakingDeceleration = 2048.f;
 };
 
