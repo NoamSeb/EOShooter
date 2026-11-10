@@ -272,7 +272,7 @@ public:
 	void Die(AController* killer);
 	
 	UFUNCTION(BlueprintImplementableEvent, Category="Life")
-	void OnDie(AController* DepartedController);
+	void OnDie(AOnlineFPSPlayerController* DepartedController);
 
 	UFUNCTION(BlueprintCallable, Category="Life")
 	void EnableInvulnerability();

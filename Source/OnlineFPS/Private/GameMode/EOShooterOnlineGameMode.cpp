@@ -5,6 +5,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystem.h"
 #include "Character/OnlineFPSCharacter.h"
+#include "Character/OnlineFPSPlayerController.h"
 #include "GameState/OnlineGameState.h"
 #include "Interfaces/OnlineSessionInterface.h"
 
@@ -48,8 +49,23 @@ void AEOShooterOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 	
 }
 
-void AEOShooterOnlineGameMode::OnPlayerKilled_Implementation(AController* Victim, AController* Killer)
+void AEOShooterOnlineGameMode::OnPlayerKilled_Implementation(AOnlineFPSPlayerController* Victim, AOnlineFPSPlayerController* Killer)
 {
+	if (Victim == nullptr)
+	{ 
+		return;
+	}
+
+	AOnlineGameState* OnlineGameState = GetGameState<AOnlineGameState>();
+	if (OnlineGameState == nullptr)
+	{
+		return;
+	}
+	
+	const FString VictimName = Victim->PlayerState != nullptr ? Victim->PlayerState->GetPlayerName() : FString(TEXT("Inconnu"));
+	const FString KillerName = Killer != nullptr && Killer->PlayerState != nullptr ? Killer->PlayerState->GetPlayerName() : FString(TEXT("Environnement"));
+
+	OnlineGameState->Multicast_OnKill(KillerName, VictimName);
 }
 
 void AEOShooterOnlineGameMode::RequestRespawn(AController* Controller)

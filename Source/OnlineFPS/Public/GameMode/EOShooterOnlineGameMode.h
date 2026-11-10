@@ -34,7 +34,7 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	void OnPlayerKilled(AController* Victim, AController* Killer);
+	void OnPlayerKilled(AOnlineFPSPlayerController* Victim, AOnlineFPSPlayerController* Killer);
 
 	UFUNCTION(BlueprintCallable)
 	void RequestRespawn(AController* Controller);

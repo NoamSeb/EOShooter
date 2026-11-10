@@ -46,3 +46,8 @@ int AOnlineGameState::GetScoreFromTeam(ETeamRole TeamToGetScore)
 	}
 	return -1;
 }
+
+void AOnlineGameState::Multicast_OnKill_Implementation(const FString& KillerName, const FString& VictimName)
+{
+	OnKillFeed.Broadcast(KillerName, VictimName);
+}

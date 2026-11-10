@@ -620,7 +620,8 @@ void AOnlineFPSCharacter::Die(AController* killer)
 {
 	CurrentLifeValue = 0.f;
 	AOnlineFPSPlayerController* VictimController = GetController<AOnlineFPSPlayerController>();
-
+	AOnlineFPSPlayerController* killerController = Cast<AOnlineFPSPlayerController>(killer);
+	
 	GetCharacterMovement()->DisableMovement();
 	GetCharacterMovement()->StopMovementImmediately();
 
@@ -643,7 +644,7 @@ void AOnlineFPSCharacter::Die(AController* killer)
 
 		if (BaseGameMode)
 		{
-			BaseGameMode->OnPlayerKilled(VictimController, killer);
+			BaseGameMode->OnPlayerKilled(VictimController, killerController);
 		}
 	}
 

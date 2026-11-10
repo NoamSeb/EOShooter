@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "OnlineFPSCharacter.h"
+#include "PlayerState/OnlinePlayerState.h"
 #include "OnlineFPSPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -24,6 +25,8 @@ public:
 
 	/** Constructor */
 	AOnlineFPSPlayerController();
+	
+	TObjectPtr<AOnlinePlayerState> PlayerState;
 
 protected:
 

@@ -23,6 +23,7 @@ struct FTeamScoreData
 /**
  * 
  */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnKillFeedSignature, const FString&, KillerName, const FString&, VictimName);
 UCLASS()
 class ONLINEFPS_API AOnlineGameState : public AGameState
 {
@@ -38,4 +39,12 @@ public:
 	void AddScoreToTeam(ETeamRole Team, int32 Points);
 	
 	int GetScoreFromTeam(ETeamRole TeamToGetScore);
+
+	// Appelé par le serveur, exécuté chez tout le monde
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_OnKill(const FString& KillerName, const FString& VictimName);
+
+	// Le widget de liste s'abonne à ça depuis le Blueprint
+	UPROPERTY(BlueprintAssignable, Category = "KillFeed")
+	FOnKillFeedSignature OnKillFeed;
 };
